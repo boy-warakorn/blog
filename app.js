@@ -4,6 +4,18 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const _ = require("lodash");
+const mongoose = require("mongoose");
+
+const url = "mongodb://localhost:27017/postDB";
+
+mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+
+const postSchema = {
+  name: String,
+  content: String,
+};
+
+const Post = mongoose.model("Post", postSchema);
 
 const homeStartingContent =
   "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
@@ -14,15 +26,19 @@ const contactContent =
 
 const app = express();
 
-let posts = [];
-
 app.set("view engine", "ejs");
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 app.get("/", function (req, res) {
-  res.render("home", { homeContent: homeStartingContent, posts: posts });
+  Post.find({}, function (err, posts) {
+    if (err) {
+      console.log(err);
+    } else {
+      res.render("home", { homeContent: homeStartingContent, posts: posts });
+    }
+  });
 });
 
 app.get("/about", function (req, res) {
@@ -38,29 +54,40 @@ app.get("/compose", function (req, res) {
 });
 
 app.post("/compose", function (req, res) {
-  const post = {
-    title: req.body.postTitle,
+  const postToSave = new Post({
+    name: req.body.postTitle,
     content: req.body.postBody,
-  };
-
-  posts.push(post);
-
-  res.redirect("/");
-});
-
-app.get("/posts/:title", function (req, res) {
-  const paramsTitle = _.lowerCase(req.params.title);
-
-  posts.forEach((post) => {
-    const title = _.lowerCase(post.title);
-
-    if (title === paramsTitle) {
-      res.render("post", { postTitle: post.title, postBody: post.content });
-      return;
+  });
+  postToSave.save(function (err) {
+    if (err) {
+      console.log(err);
     } else {
-      console.log("Not Found");
+      res.redirect("/");
     }
   });
+});
+
+app.get("/posts/:postId", function (req, res) {
+  const paramsId = req.params.postId;
+
+  Post.findOne({ _id: paramsId }, function (err, post) {
+    if (err) {
+      console.log(err);
+    } else {
+      res.render("post", { postTitle: post.name, postBody: post.content });
+    }
+  });
+
+  // posts.forEach((post) => {
+  //   const title = _.lowerCase(post.title);
+
+  //   if (title === paramsTitle) {
+  //     res.render("post", { postTitle: post.title, postBody: post.content });
+  //     return;
+  //   } else {
+  //     console.log("Not Found");
+  //   }
+  // });
 });
 
 app.listen(3000, function () {
